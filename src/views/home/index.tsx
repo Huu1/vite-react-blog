@@ -1,10 +1,12 @@
 import Button from "@mui/material/Button";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SetStateAction, useEffect, useRef, useState } from "react";
 import { Circle, Layer, Rect, Stage } from "react-konva";
 import Konva from "konva";
 
 import "./index.less";
 import { calcMaxScale } from "@/utils";
+import EditorFootToolBar from "@/components/editor-footer-toolbar";
+import { KonvaEventObject } from "konva/lib/Node";
 
 const backgroundSizeInit = {
 	width: 640,
@@ -28,12 +30,13 @@ const calcStagePosition = (
 };
 
 const STAGE_PADDING = {
-	height: 80,
+	height: 200,
 	width: 40
 };
 
 const Home = () => {
 	const wrapRef = useRef<HTMLDivElement>(null!);
+	const containerRef = useRef<HTMLDivElement>(null!);
 	const stageRef = useRef<Konva.Stage>();
 
 	// 舞台尺寸
@@ -45,7 +48,7 @@ const Home = () => {
 	// 舞台比例
 	const [scale, setScale] = useState(1);
 
-	useLayoutEffect(() => {
+	useEffect(() => {
 		setStagesize({
 			width: wrapRef.current.clientWidth,
 			height: wrapRef.current.clientHeight
@@ -66,108 +69,142 @@ const Home = () => {
 		setStagePos(pos);
 	}, [backgroundSize]);
 
-	const changeScale = (val: number) => {
-		let stageWidth = stageSize.width;
-		let stageHieight = stageSize.height;
-
+	const onMouseWheelHandle = (e: KonvaEventObject<WheelEvent>) => {
+		e.evt.preventDefault();
 		const scaleBy = 1.1;
 		const stage = stageRef.current!;
 		const oldScale = stage.scaleX();
 
-		const newScale = val > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-		setScale(newScale);
+		let stageWidth = stage.width();
+		let stageHieight = stage.height();
 
-		let newStageSize;
-		//  大于舞台宽度
-		if (newScale * backgroundSize.width + STAGE_PADDING.width > wrapRef.current.clientWidth) {
-			newStageSize = {
-				width: newScale * backgroundSize.width + STAGE_PADDING.width,
-				height: stageHieight
-			};
+		const newScale = e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+		if (newScale <= 0.1 || newScale >= 2.4) {
+			return;
 		}
-		// 小于舞台宽度并且舞台宽度没有增加过
-		if (
-			wrapRef.current.clientWidth != stageSize.width &&
-			newScale * backgroundSize.width + STAGE_PADDING.width < wrapRef.current.clientWidth
-		) {
-			newStageSize = {
-				width: wrapRef.current.clientWidth,
-				height: stageHieight
-			};
-		}
-		if (newScale * backgroundSize.height + STAGE_PADDING.height > wrapRef.current.clientHeight) {
-			newStageSize = {
-				height: newScale * backgroundSize.height + STAGE_PADDING.height,
-				width: newStageSize?.width ?? stageWidth
-			};
-		}
-		if (
-			wrapRef.current.clientHeight != stageSize.height &&
-			newScale * backgroundSize.height + STAGE_PADDING.height < wrapRef.current.clientHeight
-		) {
-			newStageSize = {
-				height: wrapRef.current.clientHeight,
-				width: newStageSize?.width ?? stageWidth
-			};
-		}
-		if (newStageSize) {
-			setStagesize(newStageSize);
-			const pos = calcStagePosition(newStageSize, 1, newScale, { x: 0, y: 0 });
-			setStagePos(pos);
-			if (newStageSize.height + STAGE_PADDING.height > wrapRef.current.clientHeight) {
-				wrapRef.current.classList.add("show-y-scroll");
-			} else {
-				wrapRef.current.classList.remove("show-y-scroll");
-			}
-		} else {
-			console.log("not change newStageSize");
-			const pos = calcStagePosition(
-				{
-					width: stageWidth,
-					height: stageHieight
-				},
-				oldScale,
-				newScale,
-				{ x: stage.x(), y: stage.y() }
-			);
-			setStagePos(pos);
-		}
+		setScale(newScale);
+		const center = {
+			x: stageWidth / 2,
+			y: stageHieight / 2
+		};
+
+		const relatedTo = {
+			x: (center.x - stage.x()) / oldScale,
+			y: (center.y - stage.y()) / oldScale
+		};
+
+		const newPos = {
+			x: center.x - relatedTo.x * newScale,
+			y: center.y - relatedTo.y * newScale
+		};
+		setStagePos(newPos);
 	};
 
-	console.log(stagePos);
+	const onZoomIn = () => {
+		const scaleBy = 1.1;
+		const stage = stageRef.current!;
+		const oldScale = stage.scaleX();
+
+		let stageWidth = stage.width();
+		let stageHieight = stage.height();
+
+		const newScale = oldScale * scaleBy;
+		if (newScale >= 2.4) {
+			return;
+		}
+		setScale(newScale);
+		const center = {
+			x: stageWidth / 2,
+			y: stageHieight / 2
+		};
+
+		const relatedTo = {
+			x: (center.x - stage.x()) / oldScale,
+			y: (center.y - stage.y()) / oldScale
+		};
+
+		const newPos = {
+			x: center.x - relatedTo.x * newScale,
+			y: center.y - relatedTo.y * newScale
+		};
+		setStagePos(newPos);
+	};
+
+	const onZoomOut = () => {
+		const scaleBy = 1.1;
+		const stage = stageRef.current!;
+		const oldScale = stage.scaleX();
+
+		let stageWidth = stage.width();
+		let stageHieight = stage.height();
+
+		const newScale = oldScale / scaleBy;
+
+		if (newScale < 0.1) {
+			return;
+		}
+		setScale(newScale);
+		const center = {
+			x: stageWidth / 2,
+			y: stageHieight / 2
+		};
+
+		const relatedTo = {
+			x: (center.x - stage.x()) / oldScale,
+			y: (center.y - stage.y()) / oldScale
+		};
+
+		const newPos = {
+			x: center.x - relatedTo.x * newScale,
+			y: center.y - relatedTo.y * newScale
+		};
+		setStagePos(newPos);
+	};
+
+	const onZoomChange = (newScale: number) => {
+		const stage = stageRef.current!;
+		const oldScale = stage.scaleX();
+
+		let stageWidth = stage.width();
+		let stageHieight = stage.height();
+
+		setScale(newScale);
+		const center = {
+			x: stageWidth / 2,
+			y: stageHieight / 2
+		};
+
+		const relatedTo = {
+			x: (center.x - stage.x()) / oldScale,
+			y: (center.y - stage.y()) / oldScale
+		};
+
+		const newPos = {
+			x: center.x - relatedTo.x * newScale,
+			y: center.y - relatedTo.y * newScale
+		};
+		setStagePos(newPos);
+	};
 
 	return (
 		<div className="flex-1 flex flex-col">
-			<div className=" h-12 ">
-				<Button
-					variant="contained"
-					onClick={() => {
-						changeScale(1);
-					}}
-				>
-					+
-				</Button>
-				<Button
-					variant="contained"
-					onClick={() => {
-						changeScale(-1);
-					}}
-				>
-					-
-				</Button>
-			</div>
-			<div className="workspace-container">
-				<div className="workspace-inner" ref={wrapRef}>
+			<div className=" h-12 ">12</div>
+			<div className="workspace-container " ref={containerRef}>
+				<div className="workspace-inner overflow-hidden relative" ref={wrapRef}>
 					<Stage
 						scaleX={scale}
 						scaleY={scale}
 						x={stagePos.x}
 						y={stagePos.y}
+						onClick={e => {
+							console.log(e.evt.x, e.evt.y);
+						}}
+						onWheel={onMouseWheelHandle}
 						width={stageSize.width}
 						height={stageSize.height}
 						className="relative"
 						ref={stageRef as React.LegacyRef<Konva.Stage>}
-						style={{ width: stageSize.width, height: stageSize.height }}
+						style={{ width: stageSize.width, height: stageSize.height, background: "#f1f2f6" }}
 					>
 						<Layer>
 							<Rect
@@ -181,9 +218,10 @@ const Home = () => {
 								}}
 								fill={"white"}
 							/>
-							<Circle draggable x={1000} y={500} radius={80} fill="red" />
+							<Circle draggable x={600} y={400} radius={80} fill="green" />
 						</Layer>
 					</Stage>
+					<EditorFootToolBar scale={scale} onZoomChange={onZoomChange} onZoomOut={onZoomOut} onZoomIn={onZoomIn} />
 				</div>
 			</div>
 		</div>

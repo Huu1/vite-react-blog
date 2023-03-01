@@ -1,28 +1,31 @@
-import { Navigate, useRoutes } from "react-router-dom";
-import { RouteObject } from "@/routers/interface";
+import React, { lazy } from "react";
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import LayoutIndex from "@/layouts";
+import lazyLoad from "./utils/lazyLoad";
 
-// * 导入所有router
-const metaRouters = import.meta.globEager("./modules/*.tsx");
-
-// * 处理路由
-export const routerArray: RouteObject[] = [];
-Object.keys(metaRouters).forEach(item => {
-	Object.keys(metaRouters[item]).forEach((key: any) => {
-		routerArray.push(...metaRouters[item][key]);
-	});
+const Home = lazy(() => {
+	return Promise.all([import("@/views/home"), new Promise(resolve => setTimeout(resolve, 300))]).then(
+		([moduleExports]) => moduleExports
+	);
 });
 
-export const rootRouter: RouteObject[] = [
-	...routerArray,
+export default createBrowserRouter([
 	{
-		path: "*",
-		element: <Navigate to="/404" />
+		path: "/",
+		element: <LayoutIndex />,
+		children: [
+			{
+				path: "/",
+				element: <Navigate to="home" />
+			},
+			{
+				path: "home",
+				element: lazyLoad(Home)
+			}
+		]
+	},
+	{
+		path: "/404",
+		element: lazyLoad(React.lazy(() => import("@/components/ErrorMessage/404")))
 	}
-];
-
-const Router = () => {
-	const routes = useRoutes(rootRouter);
-	return routes;
-};
-
-export default Router;
+]);

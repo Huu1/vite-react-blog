@@ -1,7 +1,7 @@
 import "./index.less";
 
 const SiderBar = () => {
-	return <div className="">123</div>;
+	return <div className=" w-64">123</div>;
 };
 
 export default SiderBar;

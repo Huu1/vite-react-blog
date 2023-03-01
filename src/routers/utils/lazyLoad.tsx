@@ -1,4 +1,13 @@
+import CircularProgress from "@mui/material/CircularProgress";
 import React, { Suspense } from "react";
+
+function Spinner() {
+	return (
+		<div className="w-full h-full flex justify-center items-center">
+			<CircularProgress />
+		</div>
+	);
+}
 
 /**
  * @description 路由懒加载
@@ -7,7 +16,7 @@ import React, { Suspense } from "react";
  */
 const lazyLoad = (Comp: React.LazyExoticComponent<any>): React.ReactNode => {
 	return (
-		<Suspense fallback={<>loading</>}>
+		<Suspense fallback={<Spinner />}>
 			<Comp />
 		</Suspense>
 	);
