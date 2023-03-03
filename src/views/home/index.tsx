@@ -1,16 +1,17 @@
 import Button from "@mui/material/Button";
-import { SetStateAction, useEffect, useRef, useState } from "react";
+import { SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { Circle, Layer, Rect, Stage } from "react-konva";
 import Konva from "konva";
-
+import { useDebounceFn, useEventListener, useThrottle, useThrottleFn } from "ahooks";
 import "./index.less";
 import { calcMaxScale } from "@/utils";
 import EditorFootToolBar from "@/components/editor-footer-toolbar";
 import { KonvaEventObject } from "konva/lib/Node";
+import { debounce } from "lodash";
 
 const backgroundSizeInit = {
-	width: 640,
-	height: 320
+	width: 1920,
+	height: 1080
 };
 
 const calcStagePosition = (
@@ -30,7 +31,7 @@ const calcStagePosition = (
 };
 
 const STAGE_PADDING = {
-	height: 200,
+	height: 150,
 	width: 40
 };
 
@@ -48,26 +49,41 @@ const Home = () => {
 	// 舞台比例
 	const [scale, setScale] = useState(1);
 
-	useEffect(() => {
-		setStagesize({
-			width: wrapRef.current.clientWidth,
-			height: wrapRef.current.clientHeight
-		});
-	}, []);
-
-	useEffect(() => {
+	const stageSizeChanged = useCallback(() => {
 		const stageSize = {
 			width: wrapRef.current.clientWidth,
 			height: wrapRef.current.clientHeight
 		};
+
 		const scale = calcMaxScale(backgroundSize, {
 			width: stageSize.width - STAGE_PADDING.width,
 			height: stageSize.height - STAGE_PADDING.height
 		});
-		setScale(scale);
 		const pos = calcStagePosition(stageSize, 1, scale, { x: 0, y: 0 });
+		setStagesize(stageSize);
+		setScale(scale);
 		setStagePos(pos);
 	}, [backgroundSize]);
+	const { run: throttleRun, flush } = useThrottleFn(() => stageSizeChanged(), {
+		wait: 10
+	});
+
+	useEventListener("resize", throttleRun);
+
+	useEffect(() => {
+		// 创建观察对象
+		const resizeObserver = new ResizeObserver(entries => {
+			throttleRun();
+		});
+		resizeObserver.observe(wrapRef.current);
+		return () => {
+			resizeObserver?.disconnect();
+		};
+	}, []);
+
+	useEffect(() => {
+		stageSizeChanged();
+	}, [stageSizeChanged]);
 
 	const onMouseWheelHandle = (e: KonvaEventObject<WheelEvent>) => {
 		e.evt.preventDefault();
@@ -187,10 +203,10 @@ const Home = () => {
 	};
 
 	return (
-		<div className="flex-1 flex flex-col">
+		<div className="flex-1 flex flex-col overflow-hidden" ref={containerRef}>
 			<div className=" h-12 ">12</div>
-			<div className="workspace-container " ref={containerRef}>
-				<div className="workspace-inner overflow-hidden relative" ref={wrapRef}>
+			<div className="workspace-container ">
+				<div className="workspace-inner  relative" ref={wrapRef}>
 					<Stage
 						scaleX={scale}
 						scaleY={scale}
@@ -204,7 +220,7 @@ const Home = () => {
 						height={stageSize.height}
 						className="relative"
 						ref={stageRef as React.LegacyRef<Konva.Stage>}
-						style={{ width: stageSize.width, height: stageSize.height, background: "#f1f2f6" }}
+						style={{ width: stageSize.width, height: stageSize.height }}
 					>
 						<Layer>
 							<Rect
@@ -221,7 +237,9 @@ const Home = () => {
 							<Circle draggable x={600} y={400} radius={80} fill="green" />
 						</Layer>
 					</Stage>
-					<EditorFootToolBar scale={scale} onZoomChange={onZoomChange} onZoomOut={onZoomOut} onZoomIn={onZoomIn} />
+					{!!stageSize.width && (
+						<EditorFootToolBar scale={scale} onZoomChange={onZoomChange} onZoomOut={onZoomOut} onZoomIn={onZoomIn} />
+					)}
 				</div>
 			</div>
 		</div>

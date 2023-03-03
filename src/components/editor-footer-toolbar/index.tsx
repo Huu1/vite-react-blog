@@ -17,8 +17,6 @@ type TTool = {
 };
 
 const EditorFootToolBar = (props: TTool) => {
-	console.log(props);
-
 	const [alignment, setAlignment] = React.useState("left");
 	const handleAlignment = (event: React.MouseEvent<HTMLElement>, newAlignment: string | null) => {
 		if (newAlignment !== null) {

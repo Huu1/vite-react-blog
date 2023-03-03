@@ -9,7 +9,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 
 export default function TopBar() {
 	return (
-		<AppBar position="static">
+		<AppBar position="static" className=" z-10">
 			<Toolbar variant="dense">
 				<IconButton size="large" edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}>
 					<MenuIcon />
